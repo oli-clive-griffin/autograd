@@ -1,65 +1,42 @@
-import { Bin } from './types'
+import { Op } from './types'
 
-export const add: Bin = {
-    l(l, r) {
+export const add: Op = {
+    abstract(...args) {
         return {
             type: 'abstractopcall',
-            abstractopcall: {
-                op: 'add',
-                args: [l, r]
-            }
+            abstractopcall: { op: add, args }
         };
     },
-    f(l, r) {
+    forward(...args) {
         return {
-            val: l.val + r.val,
-            resultOf: { op: 'add', args: [l, r] }
+            val: args.reduce((a, c) => a + c.val, 0),
+            resultOf: { op: add, args }
         };
     },
-    b(upstreamG, l_inter, r_inter) {
-        return {
-            dL: upstreamG,
-            dR: upstreamG,
-        };
-    },
-    fp(l, r) {
-        return {
-            type: 'opcallparams',
-            opcallparams: {
-                args: [l, r],
-            }
-        };
+    backward(upstreamG, ...intermediates) {
+        return [...new Array(intermediates.length).fill(0).map(_ => upstreamG)]
     },
 };
 
-export const mul: Bin = {
-    l(l, r) {
+export const mul: Op = {
+    abstract(...args) {
         return {
             type: 'abstractopcall',
-            abstractopcall: {
-                op: 'mul',
-                args: [l, r]
-            }
+            abstractopcall: { op: mul, args }
         };
     },
-    f(l, r) {
+    forward(...args) {
         return {
-            val: l.val * r.val,
-            resultOf: { op: 'mul', args: [l, r] }
+            val: args.reduce((a, c) => a * c.val, 1),
+            resultOf: { op: mul, args }
         };
     },
-    b(upstreamG, l_inter, r_inter) {
+    backward(upstreamG, ...intermediates) {
+        if (intermediates.length !== 2) throw new Error('cant be bothered implementing product else self')
+        const [l_inter, r_inter] = intermediates
         const dL = upstreamG * r_inter;
         const dR = upstreamG * l_inter;
-        return { dL, dR };
-    },
-    fp(l, r) {
-        return {
-            type: 'opcallparams',
-            opcallparams: {
-                args: [l, r],
-            }
-        };
+        return [dL, dR];
     },
 };
 

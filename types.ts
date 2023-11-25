@@ -1,17 +1,23 @@
-export type OpCall = { op: string, args: [Expr, Expr] }
+export type Op = {
+    abstract: (...args: AbstractExpr[]) => AbstractExpr,
+    forward: (...args: Expr[]) => Expr,
+    backward: (upstreamG: number, ...intermediates: number[]) => number[],
+}
+
+export type OpCall = { op: Op, args: Expr[] }
 export type Expr = { val: number, resultOf?: OpCall }
 
-export type d_OpCall = { op: string, args: [d_Expr, d_Expr]  }
+export type d_OpCall = { /*op: string,*/ args: d_Expr[]  }
 export type d_Expr = { dVal: number, preCall?: d_OpCall }
 
-export type AbstractAxpr = (
+export type AbstractExpr = (
     | { type: 'abstractparam' }
     | { type: 'abstractopcall', abstractopcall: AbstractOpCall }
 )
 
 export type AbstractOpCall = {
-    op: string // could be type op
-    args: [AbstractAxpr, AbstractAxpr]
+    op: Op // could be type op
+    args: AbstractExpr[]
 }
 
 export type Params = (
@@ -20,14 +26,7 @@ export type Params = (
 )
 
 export type OpCallParams = {
-    args: [Params, Params]
-}
-
-export type Bin = {
-    l: (l: AbstractAxpr, r: AbstractAxpr) => AbstractAxpr,
-    f: (l: Expr, r: Expr) => Expr,
-    fp: (l: Params, r: Params) => Params,
-    b: (upstreamG: number, l_inter: number, r_inter: number) => ({ dL: number, dR: number }),
+    args: Params[]
 }
 
 export type UpdateFN = (p: number, d: number) => number;

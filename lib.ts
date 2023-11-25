@@ -1,33 +1,22 @@
-import { add, mul } from './ops'
-import { OpCall, d_OpCall, Expr, d_Expr, AbstractAxpr, AbstractOpCall, OpCallParams, Params, UpdateFN } from './types'
-
-function getBack(op: string) {
-    switch (op) {
-        case 'add': return add.b;
-        case 'mul': return mul.b;
-        default: throw new Error('back func not found');
-    }
-}
-
-function getForward(op: string) {
-    switch (op) {
-        case 'add': return add.f;
-        case 'mul': return mul.f;
-        default: throw new Error('forward func not found');
-    }
-}
+import {
+    OpCall,
+    d_OpCall,
+    Expr,
+    d_Expr,
+    AbstractExpr,
+    AbstractOpCall,
+    OpCallParams,
+    Params,
+    UpdateFN,
+} from './types'
 
 export function backCall(call: OpCall, upstream: number): d_OpCall {
-    const { op, args: [l, r] } = call;
+    const { op, args } = call;
 
-    const { dL, dR } = getBack(call.op)(upstream, l.val, r.val);
+    const grads = op.backward(upstream, ...args.map(a => a.val));
 
     return {
-        op,
-        args: [
-            backExpr(l, dL),
-            backExpr(r, dR),
-        ]
+        args: args.map((a, i) => backExpr(a, grads[i])),
     };
 }
 
@@ -43,15 +32,14 @@ export function backExpr(expr: Expr, upstream = 1): d_Expr {
 export function evaluateAbstractOpCall(opcall: AbstractOpCall, params: OpCallParams): Expr {
     const { op, args: [l, r] } = opcall;
     const { args: [pl, pr] } = params;
-    const f = getForward(op);
 
-    return f(
+    return op.forward(
         evaluateAbstractExpr(l, pl),
         evaluateAbstractExpr(r, pr)
     );
 }
 
-export function evaluateAbstractExpr(expr: AbstractAxpr, params: Params): Expr {
+export function evaluateAbstractExpr(expr: AbstractExpr, params: Params): Expr {
     if (expr.type === 'abstractparam' && params.type === 'param') {
         return { val: params.val };
     }
@@ -66,10 +54,7 @@ export function mapParamsExpr(params: Params, d_expr: d_Expr, f: UpdateFN): Para
         return {
             type: 'opcallparams',
             opcallparams: {
-                args: [
-                    i_expr(ocp.args[0], docp.args[0]),
-                    i_expr(ocp.args[1], docp.args[1]),
-                ]
+                args: ocp.args.map((arg, i) => i_expr(arg, docp.args[i]))
             }
         }
     }
@@ -87,6 +72,13 @@ export function mapParamsExpr(params: Params, d_expr: d_Expr, f: UpdateFN): Para
     return i_expr(params, d_expr)
 }
 
-export const emptyparam = (): AbstractAxpr => ({ type: 'abstractparam' })
+export const emptyparam = (): AbstractExpr => ({ type: 'abstractparam' })
 
 export const param = (val: number): Params => ({ val, type: 'param' })
+
+export function fp(...args: Params[]): Params {
+    return {
+        type: 'opcallparams',
+        opcallparams: { args }
+    };
+};
