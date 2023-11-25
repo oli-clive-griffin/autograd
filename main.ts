@@ -3,6 +3,7 @@ function l(a: any) { console.log(JSON.stringify(a, null, 2)) }
 type call = { op: string, args: [expr, expr] }
 type expr = { val: number, preCall?: call }
 
+
 type dCall = { op: string, args: [dExpr, dExpr]  }
 type dExpr = { dVal: number, preCall?: dCall }
 
@@ -13,11 +14,32 @@ type Bin = {
     b: (upstreamG: number, l_inter: number, r_inter: number) => ({ dL: number, dR: number }),
 }
 
+type abstractexpr = (
+    | { type: 'abstractparam' }
+    | { type: 'abstractopcall', abstractopcall: abstractopcall }
+)
+
+type abstractopcall = {
+    op: string // could be type op
+    args: [abstractexpr, abstractexpr]
+}
+
+//=====================
+
+type params = (
+    | { type: 'param', val: number }
+    | { type: 'opcallparams', opcallparams: opcallparams }
+)
+
+type opcallparams = {
+    args: [params, params]
+}
+
 const add: Bin = {
     l(l, r) {
         return {
-            type: 'opcall',
-            opcall: {
+            type: 'abstractopcall',
+            abstractopcall: {
                 op: 'add',
                 args: [l, r]
             }
@@ -38,7 +60,7 @@ const add: Bin = {
     fp(l, r) {
         return {
             type: 'opcallparams',
-            opcall: {
+            opcallparams: {
                 args: [l, r],
             }
         }
@@ -48,8 +70,8 @@ const add: Bin = {
 const mul: Bin = {
     l(l, r) {
         return {
-            type: 'opcall',
-            opcall: {
+            type: 'abstractopcall',
+            abstractopcall: {
                 op: 'mul',
                 args: [l, r]
             }
@@ -69,7 +91,7 @@ const mul: Bin = {
     fp(l, r) {
         return {
             type: 'opcallparams',
-            opcall: {
+            opcallparams: {
                 args: [l, r],
             }
         }
@@ -84,11 +106,11 @@ function getBack(op: string) {
     }
 }
 
-function getF(op: string) {
+function getForward(op: string) {
     switch (op) {
         case 'add': return add.f;
         case 'mul': return mul.f;
-        default: throw new Error('back func not found');
+        default: throw new Error('forward func not found');
     }
 }
 
@@ -119,31 +141,10 @@ const arg = (val: number): expr => ({ val })
 
 //=====================
 
-type abstractexpr = (
-    | { type: 'abstractparam' }
-    | { type: 'opcall', opcall: abstractopcall }
-)
-
-type abstractopcall = {
-    op: string // could be type op
-    args: [abstractexpr, abstractexpr]
-}
-
-//=====================
-
-type params = (
-    | { type: 'param', val: number }
-    | { type: 'opcallparams', opcall: opcallparams }
-)
-
-type opcallparams = {
-    args: [params, params]
-}
-
 const evaluateAbstractOpCall = (opcall: abstractopcall, params: opcallparams): expr => {
     const { op, args: [l, r] } = opcall
     const { args: [pl, pr] } = params
-    const f = getF(op)
+    const f = getForward(op)
 
     return f(
         evaluateAbstractExpr(l, pl),
@@ -155,8 +156,8 @@ const evaluateAbstractExpr = (expr: abstractexpr, params: params): expr => {
     if (expr.type === 'abstractparam' && params.type === 'param') {
         return { val: params.val }
     }
-    if (expr.type === 'opcall' && params.type === 'opcallparams') {
-        return evaluateAbstractOpCall(expr.opcall, params.opcall)
+    if (expr.type === 'abstractopcall' && params.type === 'opcallparams') {
+        return evaluateAbstractOpCall(expr.abstractopcall, params.opcallparams)
     }
     throw new Error(`shapes did not match, got ${expr.type} and ${params.type}`)
 }
