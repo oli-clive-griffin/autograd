@@ -30,12 +30,8 @@ export function backExpr(expr: Expr, upstream = 1): d_Expr {
 }
 
 export function evaluateAbstractOpCall(opcall: AbstractOpCall, params: OpCallParams): Expr {
-    const { op, args: [l, r] } = opcall;
-    const { args: [pl, pr] } = params;
-
-    return op.forward(
-        evaluateAbstractExpr(l, pl),
-        evaluateAbstractExpr(r, pr)
+    return opcall.op.forward(
+        ...opcall.args.map((arg, i) => evaluateAbstractExpr(arg, params.args[i]))
     );
 }
 
