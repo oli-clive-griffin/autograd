@@ -1,18 +1,10 @@
 function l(a: any) { console.log(JSON.stringify(a, null, 2)) }
 
-type call = { op: string, args: [expr, expr] }
-type expr = { val: number, preCall?: call }
+type opcall = { op: string, args: [expr, expr] }
+type expr = { val: number, resultOf?: opcall }
 
-
-type dCall = { op: string, args: [dExpr, dExpr]  }
-type dExpr = { dVal: number, preCall?: dCall }
-
-type Bin = {
-    l: (l: abstractexpr, r: abstractexpr) => abstractexpr,
-    f: (l: expr, r: expr) => expr,
-    fp: (l: params, r: params) => params,
-    b: (upstreamG: number, l_inter: number, r_inter: number) => ({ dL: number, dR: number }),
-}
+type d_opcall = { op: string, args: [d_expr, d_expr]  }
+type d_expr = { dVal: number, preCall?: d_opcall }
 
 type abstractexpr = (
     | { type: 'abstractparam' }
@@ -35,6 +27,14 @@ type opcallparams = {
     args: [params, params]
 }
 
+type Bin = {
+    l: (l: abstractexpr, r: abstractexpr) => abstractexpr,
+    f: (l: expr, r: expr) => expr,
+    fp: (l: params, r: params) => params,
+    b: (upstreamG: number, l_inter: number, r_inter: number) => ({ dL: number, dR: number }),
+}
+
+
 const add: Bin = {
     l(l, r) {
         return {
@@ -48,7 +48,7 @@ const add: Bin = {
     f(l, r) {
         return {
             val: l.val + r.val,
-            preCall: { op: 'add', args: [l, r] }
+            resultOf: { op: 'add', args: [l, r] }
         }
     },
     b(upstreamG, l_inter, r_inter) {
@@ -80,7 +80,7 @@ const mul: Bin = {
     f(l, r) {
         return {
             val: l.val * r.val,
-            preCall: { op: 'mul', args: [l, r] }
+            resultOf: { op: 'mul', args: [l, r] }
         }
     },
     b(upstreamG, l_inter, r_inter) {
@@ -114,7 +114,7 @@ function getForward(op: string) {
     }
 }
 
-const backCall = (call: call, upstream: number): dCall => {
+const backCall = (call: opcall, upstream: number): d_opcall => {
     const { op, args: [l, r] } = call
 
     const { dL, dR } = getBack(call.op)(upstream, l.val, r.val)
@@ -128,12 +128,12 @@ const backCall = (call: call, upstream: number): dCall => {
     }
 }
 
-const backExpr = (expr: expr, upstream = 1): dExpr => {
+const backExpr = (expr: expr, upstream = 1): d_expr => {
     return {
         dVal: upstream,
-        preCall: expr.preCall == null
+        preCall: expr.resultOf == null
             ? undefined
-            : backCall(expr.preCall, upstream)
+            : backCall(expr.resultOf, upstream)
     }
 }
 
@@ -166,13 +166,20 @@ const evaluateAbstractExpr = (expr: abstractexpr, params: params): expr => {
 
 const emptyparam = (): abstractexpr => ({ type: 'abstractparam' })
 const myExprUnparam = mul.l(add.l(mul.l(emptyparam(), emptyparam()), emptyparam()), emptyparam())
+l({ myExprUnparam })
 
 const param = (val: number): params => ({ val, type: 'param' })
-const m2 = param(2)
-const x2 = param(3)
-const b2 = param(4)
-const c2 = param(5)
+const m2 = param(5)
+const x2 = param(4)
+const b2 = param(3)
+const c2 = param(3)
 
 const myExprparams = mul.fp(add.fp(mul.fp(m2, x2), b2), c2) // todo make expr->params mapping instead
+l({ myExprparams })
 
-l(backExpr(evaluateAbstractExpr(myExprUnparam, myExprparams)))
+const evaled = evaluateAbstractExpr(myExprUnparam, myExprparams)
+l({ evaled })
+
+const grads = backExpr(evaled)
+l({ grads })
+
