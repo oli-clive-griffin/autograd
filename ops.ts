@@ -1,12 +1,7 @@
-import { Op } from './types'
+import { Op } from './lib'
 
 export const add: Op = {
-    abstract(...args) {
-        return {
-            type: 'abstractopcall',
-            abstractopcall: { op: add, args }
-        };
-    },
+    toJSON: () => 'add',
     forward(...args) {
         return {
             val: args.reduce((a, c) => a + c.val, 0),
@@ -20,12 +15,7 @@ export const add: Op = {
 };
 
 export const mul: Op = {
-    abstract(...args) {
-        return {
-            type: 'abstractopcall',
-            abstractopcall: { op: mul, args }
-        };
-    },
+    toJSON: () => 'mul',
     forward(...args) {
         return {
             val: args.reduce((a, c) => a * c.val, 1),
@@ -42,12 +32,7 @@ export const mul: Op = {
 };
 
 export const sin: Op = {
-    abstract(...args) {
-        return {
-            type: 'abstractopcall',
-            abstractopcall: { op: sin, args }
-        };
-    },
+    toJSON: () => 'sin',
     forward(...args) {
         if (args.length != 1) throw new Error('cannot call `sin` op with more than 1 arg')
         const [arg] = args
@@ -64,12 +49,7 @@ export const sin: Op = {
 };
 
 export const cos: Op = {
-    abstract(...args) {
-        return {
-            type: 'abstractopcall',
-            abstractopcall: { op: cos, args }
-        };
-    },
+    toJSON: () => 'cos',
     forward(...args) {
         if (args.length != 1) throw new Error('cannot call `cos` op with more than 1 arg')
         const [arg] = args
@@ -82,5 +62,22 @@ export const cos: Op = {
         if (intermediates.length != 1) throw new Error('cannot call `cos` op with more than 1 arg')
         const [int] = intermediates
         return [-Math.sin(int) * upstreamG]
+    },
+};
+
+export const sq: Op = {
+    toJSON: () => 'sq',
+    forward(...args) {
+        if (args.length != 1) throw new Error('cannot call `sq` op with more than 1 arg')
+        const [arg] = args
+        return {
+            val: arg.val ** 2,
+            resultOf: { op: sq, args }
+        };
+    },
+    backward(upstreamG, ...intermediates) {
+        if (intermediates.length != 1) throw new Error('cannot call `sq` op with more than 1 arg')
+        const [int] = intermediates
+        return [2 * int * upstreamG]
     },
 };
