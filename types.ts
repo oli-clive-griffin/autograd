@@ -5,10 +5,10 @@ export type Op = {
 }
 
 export type OpCall = { op: Op, args: Expr[] }
-export type Expr = { val: number, resultOf?: OpCall }
+export type Expr = { val: number, resultOf?: OpCall, __param?: boolean }
 
 export type d_OpCall = { /*op: string,*/ args: d_Expr[]  }
-export type d_Expr = { dVal: number, preCall?: d_OpCall }
+export type d_Expr = { dVal: number, preCall?: d_OpCall, __param?: boolean }
 
 export type AbstractExpr = (
     | { type: 'abstractparam' }

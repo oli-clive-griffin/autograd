@@ -9,6 +9,7 @@ import {
     Params,
     UpdateFN,
 } from './types'
+import { zip } from './utils';
 
 export function backCall(call: OpCall, upstream: number): d_OpCall {
     const { op, args } = call;
@@ -16,7 +17,7 @@ export function backCall(call: OpCall, upstream: number): d_OpCall {
     const grads = op.backward(upstream, ...args.map(a => a.val));
 
     return {
-        args: args.map((a, i) => backExpr(a, grads[i])),
+        args: zip(backExpr, args, grads)
     };
 }
 
@@ -25,13 +26,14 @@ export function backExpr(expr: Expr, upstream = 1): d_Expr {
         dVal: upstream,
         preCall: expr.resultOf == null
             ? undefined
-            : backCall(expr.resultOf, upstream)
+            : backCall(expr.resultOf, upstream),
+        __param: expr.__param,
     };
 }
 
 export function evaluateAbstractOpCall(opcall: AbstractOpCall, params: OpCallParams): Expr {
     return opcall.op.forward(
-        ...opcall.args.map((arg, i) => evaluateAbstractExpr(arg, params.args[i]))
+        ...zip(evaluateAbstractExpr, opcall.args, params.args)
     );
 }
 
@@ -50,7 +52,7 @@ export function mapParamsExpr(params: Params, d_expr: d_Expr, f: UpdateFN): Para
         return {
             type: 'opcallparams',
             opcallparams: {
-                args: ocp.args.map((arg, i) => i_expr(arg, docp.args[i]))
+                args: zip(i_expr, ocp.args, docp.args),
             }
         }
     }
@@ -68,11 +70,28 @@ export function mapParamsExpr(params: Params, d_expr: d_Expr, f: UpdateFN): Para
     return i_expr(params, d_expr)
 }
 
+export function getDexprParamGrads(d_expr: d_Expr): number[] {
+    if (d_expr.preCall != null) {
+        return getDopcallParamGrads(d_expr.preCall)
+    }
+    if (d_expr.__param) {
+        return [d_expr.dVal]
+    }
+    return []
+}
+
+export function getDopcallParamGrads(d_opCall: d_OpCall): number[] {
+    return d_opCall.args.map(getDexprParamGrads).flat()
+}
+
 export const emptyparam = (): AbstractExpr => ({ type: 'abstractparam' })
 
 export const param = (val: number): Params => ({ val, type: 'param' })
 
-export function fp(...args: Params[]): Params {
+export const val = (val: number): Expr & any => ({ val, __param: true })
+export const statick = (val: number): Expr & any => ({ val })
+
+export function shape_params(...args: Params[]): Params {
     return {
         type: 'opcallparams',
         opcallparams: { args }

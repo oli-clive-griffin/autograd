@@ -14,7 +14,8 @@ export const add: Op = {
         };
     },
     backward(upstreamG, ...intermediates) {
-        return [...new Array(intermediates.length).fill(0).map(_ => upstreamG)]
+        const asdf = [...new Array(intermediates.length).fill(0).map(_ => upstreamG)]
+        return asdf
     },
 };
 
@@ -59,5 +60,27 @@ export const sin: Op = {
         if (intermediates.length != 1) throw new Error('cannot call `sin` op with more than 1 arg')
         const [int] = intermediates
         return [Math.cos(int) * upstreamG]
+    },
+};
+
+export const cos: Op = {
+    abstract(...args) {
+        return {
+            type: 'abstractopcall',
+            abstractopcall: { op: cos, args }
+        };
+    },
+    forward(...args) {
+        if (args.length != 1) throw new Error('cannot call `cos` op with more than 1 arg')
+        const [arg] = args
+        return {
+            val: Math.cos(arg.val),
+            resultOf: { op: cos, args }
+        };
+    },
+    backward(upstreamG, ...intermediates) {
+        if (intermediates.length != 1) throw new Error('cannot call `cos` op with more than 1 arg')
+        const [int] = intermediates
+        return [-Math.sin(int) * upstreamG]
     },
 };
